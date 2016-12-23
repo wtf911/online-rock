@@ -1,4 +1,3 @@
-// hi david
 #include "stdafx.h"
 #include <algorithm>
 #include <iomanip>
@@ -9,13 +8,39 @@
 #include <windows.h>
 #include <limits>
 #include <SFML/Network.hpp>
+#include <wininet.h>
+
+#pragma comment(lib, "wininet")
 
 using namespace std;
 
-double player, computer, wins, losses, ties, serverorclient;
+double player, computer, wins, losses, ties, serverorclient, port;
 string name, opponent;
 
 sf::TcpSocket client;
+
+int external()
+{
+	external:
+	HINTERNET hInternet, hFile;
+	DWORD rSize;
+	char buffer[47];
+
+	hInternet = InternetOpen(NULL, INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+	hFile = InternetOpenUrlA(hInternet, "http://myexternalip.com/raw", NULL, 0, INTERNET_FLAG_RELOAD, 0);
+	InternetReadFile(hFile, &buffer, sizeof(buffer), &rSize);
+	buffer[rSize] = '\0';
+
+	InternetCloseHandle(hFile);
+	InternetCloseHandle(hInternet);
+
+	if (buffer == "") { 
+		goto external;
+	}
+
+	cout << "Share this IP: " << buffer << "\n";
+	return 0;
+}
 
 int onlineplay()
 {
@@ -167,16 +192,41 @@ menu:
 	if (menu == 1) {
 		serverorclient = 1;
 		system("CLS");
+
+		portchoice:
+		cout << "Choose a port: ";
+
+		while (true) {
+			cin >> port;
+			if (port >= 1 && port <= 65535) {
+				system("CLS");
+				cout << "Share this port: " << port << endl;
+				break;
+			}
+			else {
+				cin.clear();
+				cin.ignore(INT_MAX, '\n');
+				system("CLS");
+				cout << "You must enter a number between 1 and 65535!";
+				Sleep(3000);
+				system("CLS");
+				goto portchoice;
+			}
+		}
+
 		sf::TcpListener listener;
 
 		// bind the listener to a port
-		if (listener.listen(6969) != sf::Socket::Done)
+		if (listener.listen(port) != sf::Socket::Done)
 		{
 			// error...
-			cout << "There was a problem binding to port 6969.";
+			system("CLS");
+			cout << "There was a problem binding to port: " << port;
 			Sleep(3000);
-			return 1;
+			goto portchoice;
 		}
+
+		external();
 
 		// accept a new connection
 		cout << "Waiting for a connection..." << endl;
@@ -185,7 +235,7 @@ menu:
 			// error...
 			cout << "There was a problem connecting to the client.";
 			Sleep(3000);
-			return 1;
+			goto menu;
 		}
 
 		//send
@@ -221,8 +271,28 @@ menu:
 		cout << "Please enter the IP address you would like to connect to: ";
 		string ipaddress;
 		cin >> ipaddress;
+
+	portclient:
+		cout << "Choose a port: ";
+
+		while (true) {
+			cin >> port;
+			if (port >= 1 && port <= 65535) {
+				break;
+			}
+			else {
+				cin.clear();
+				cin.ignore(INT_MAX, '\n');
+				system("CLS");
+				cout << "You must enter a number between 1 and 65535!";
+				Sleep(3000);
+				system("CLS");
+				goto portclient;
+			}
+		}
+
 		cout << "Trying to connect..." << endl;
-		sf::Socket::Status status = client.connect(ipaddress, 6969);
+		sf::Socket::Status status = client.connect(ipaddress, port);
 		if (status != sf::Socket::Done)
 		{
 			// error...
@@ -361,6 +431,7 @@ start:
 	system("CLS");
 	return 0;
 }
+
 int main()
 {
 	cout << "Welcome to Rock Paper Scissors!" << endl << "Please enter your name: ";
